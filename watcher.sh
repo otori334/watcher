@@ -1,5 +1,11 @@
 #!/bin/bash 
 
+# see also 
+# http://mizti.hatenablog.com/entry/2013/01/27/204343 
+# https://qiita.com/tamanobi/items/74b62e25506af394eae5 
+# https://www.softel.co.jp/blogs/tech/archives/1332 
+# https://qiita.com/stc1988/items/464410382f8425681c20 
+
 IFS=$'\n' # 空白を含む名前を扱う 
 INTERVAL=0 
 
@@ -19,15 +25,17 @@ function setup_target_dir () {
     while [ "$1" != "" ]; do 
         if [ -d "$1" ]; then 
             _exist_dir[$((_exist_index++))]=`cd "$1"; pwd` 
+        elif [ -f "$1" ]; then 
+            echo "${CMD_NAME}: $1: Please specify directory." 1>&2 
         else 
-            echo "${CMD_NAME}: $1: No such file or directory." 1>&2 
+            echo "${CMD_NAME}: $1: No such directory." 1>&2 
         fi 
         shift 
     done 
     
     # 実在するディレクトリが指定されない場合は終了する 
     if [ ${_exist_index} -eq 0 ]; then 
-        echo "${CMD_NAME}: Error input Directory name. Directory not found." 1>&2 
+        echo "${CMD_NAME}: Please specify directory." 1>&2 
         exit 1 
     fi 
     
@@ -78,9 +86,9 @@ else
 fi 
 
 
-# 名称変更・追加・更新されたファイルを抽出し，配列 rename_add_update に記録する 
-# rename_add_update 関数が初めて呼ばれた場合，ファイル抽出は行わない 
-function rename_add_update () { 
+# 名称変更・追加・更新されたファイルを抽出し，配列 rename_create_modify に記録する 
+# rename_create_modify 関数が初めて呼ばれた場合，ファイル抽出は行わない 
+function rename_create_modify () { 
     
     # UNIX時間 
     local _nowtime=`date "+%s"` 
@@ -118,26 +126,34 @@ function rename_add_update () {
                     -prune -o \
                     -type f \
                     -print | 
-        shasum -a 256 $(cat -) . 2> /dev/null \
+        shasum -a 256 $(cat -) . 2> /dev/null | 
+        sort 
     `) 
     
     # 粗く割り出したファイルのハッシュ値をバッファと比較し，ファイルを抽出する 
     # _first_flag が定義済みの場合，ファイル抽出は行わない 
     if [ ${#current[*]} -eq 0 -o "${_first_flag+set}" ]; then 
-        rename_add_update=() 
+        rename_create_modify=() 
     else 
         # 内容が変更されたファイル・名称が変更された直後のファイル・追加されたファイルを抽出する 
-        # Thanks to https://anmino.hatenadiary.org/entry/20091020/1255988532 
-        # Thanks to https://genzouw.com/entry/2019/04/22/175208/1393/ 
-        rename_add_update=(` \
-            sort -u <<< "${current[*]}${IFS}${_last[*]}" | 
-            sort <<< "$(cat -)${IFS}${_last[*]}" | 
+            # 片方の配列にあってもう片方にはないデータを見つける 
+                # Thanks to https://anmino.hatenadiary.org/entry/20091020/1255988532  
+            # sort 高速化 
+                # Thanks to https://genzouw.com/entry/2019/04/22/175208/1393 
+                # 変化するファイル数が100程度の場合，外部コマンド起動時間の影響が高速化の影響を上回り，数ミリ秒遅い 
+                # 変化するファイル数が膨大な場合に効果を発揮する 
+        rename_create_modify=(` \
+            sort -m \
+                <(sort -mu \
+                    <(echo -n "${_last[*]}") \
+                    <(echo -n "${current[*]}")) \
+                <(echo -n "${_last[*]}") | 
             uniq -u | 
-            cut -d' ' -f 3- \
+            cut -d' ' -f 3- 
         `) 
     fi 
     
-    #echo "${rename_add_update[*]}" 1>&2 
+    #echo "${rename_create_modify[*]}" 1>&2 
     return 0 
 } 
 
@@ -146,10 +162,10 @@ setup_target_dir $@
 
 while true; do 
     
-    rename_add_update ${target_dir[@]} 
+    rename_create_modify ${target_dir[@]} 
     
-    if [ ${#rename_add_update[*]} -ne 0 ]; then 
-        echo "${rename_add_update[*]}" 1>&2 
+    if [ ${#rename_create_modify[*]} -ne 0 ]; then 
+        echo "${rename_create_modify[*]}" 1>&2 
     fi 
     
     sleep ${INTERVAL} 
