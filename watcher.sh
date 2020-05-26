@@ -116,6 +116,7 @@ function rename_create_modify () {
             # Thanks to https://www.roshi.tv/2011/02/find-prune.html 
         # find 高速化 
             # Thanks to https://qrunch.net/@wordijp/entries/sjIzVouQJStiLF3L 
+        # shasum が読み込みモードになってスタックするのを防ぐためにデフォルト値を入れている 
     current=(` \
         echo $@ | 
         xargs -n 1 -P 2 -I{} \
@@ -125,6 +126,7 @@ function rename_create_modify () {
                 -name '.DS_Store' \) \
                     -prune -o \
                     -type f \
+                    -newer "${TIMESTAMP}" \
                     -print | 
         shasum -a 256 $(cat -) . 2> /dev/null | 
         sort 
