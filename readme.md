@@ -5,6 +5,7 @@
 ## 使い方 
 
 引数で1個以上のディレクトリを指定 
+cron で使うなら[watcher2.sh](watcher2.sh)
 
 ``` 
 $ ./watcher.sh '/a/o/e' './a/o/u/i' 
