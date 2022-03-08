@@ -117,8 +117,8 @@ function rename_create_modify () {
         # find 高速化 
             # Thanks to https://qrunch.net/@wordijp/entries/sjIzVouQJStiLF3L 
         # shasum が読み込みモードになってスタックするのを防ぐためにデフォルト値を入れている 
-    current=(` \
-        echo $@ | 
+        
+    local _file_list=`echo $@ |
         xargs -n 1 -P 2 -I{} \
             find {} \( \
                 -name 'node_modules' -o \
@@ -126,11 +126,10 @@ function rename_create_modify () {
                 -name '.DS_Store' \) \
                     -prune -o \
                     -type f \
-                    -newer "${TIMESTAMP}" \
-                    -print | 
-        shasum -a 256 $(cat -) . 2> /dev/null | 
-        sort 
-    `) 
+                    -newer "${LOG}" \
+                    -print`
+    
+    current=(`shasum -a 256 ${_file_list} . 2> /dev/null | sort`) 
     
     # 粗く割り出したファイルのハッシュ値をバッファと比較し，ファイルを抽出する 
     # _first_flag が定義済みの場合，ファイル抽出は行わない 
