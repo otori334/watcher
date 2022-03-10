@@ -93,6 +93,7 @@ function rename_create_modify () {
     
     local _last=(`cat "${LOG}"`)
     
+    # GNU 版 xargs は下の方法では動かないので find {} などを find $@ に置き換える．もっといい方法があるかもしれないが調べてない．
     local _file_list=`echo $@ |
         xargs -n 1 -P 2 -I{} \
             find {} \( \
@@ -103,6 +104,8 @@ function rename_create_modify () {
                     -type f \
                     -newer "${LOG}" \
                     -print`
+    
+    # ここの前後をパイプで繋げると GNU 版 find の -newer が "${LOG}" へのリダイレクトを検知してしまうので，それを防ぐために変数を介している． BSD 版 find ならパイプを使っても問題ない．
     
     shasum -a 256 ${_file_list} . 2> /dev/null | sort > "${LOG}"
     
